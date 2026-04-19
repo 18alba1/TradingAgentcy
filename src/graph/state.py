@@ -1,0 +1,2 @@
+'''
+shared state schema'''
