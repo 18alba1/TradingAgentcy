@@ -1,99 +1,79 @@
-"""
-Sentiment Agent (FinBERT-based)
+import os
+import json
+from dotenv import load_dotenv
 
-Responsible for:
-- Company news sentiment
-- Global news sentiment
+from langchain_openai import ChatOpenAI
+from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain.tools import StructuredTool
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-Output:
-- structured sentiment score + label
-"""
+from src.tools.news_tool import get_company_news, get_global_news
 
-from transformers import pipeline
+load_dotenv()
+openai_api_key=os.environ.get("OPENAI_API_KEY")
 
-sentiment_pipeline = pipeline(
-    "text-classification",
-    model="ProsusAI/finbert",
-    return_all_scores=True
+llm = ChatOpenAI(
+    model="gpt-4o-mini",
+    temperature=0.2,
+    api_key=openai_api_key
 )
 
-def _analyze_text(text: str):
-    output = sentiment_pipeline(text)
+SYSTEM_PROMPT = """
+You are a financial sentiment analyst in a trading system.
 
-    if isinstance(output, list) and len(output) > 0:
+Your job:
+- Analyze company news sentiment
+- Analyze global market sentiment
+- Detect risk, optimism, or uncertainty
+- Output structured sentiment insight for a trading system
 
-        if isinstance(output[0], list):
-            results = output[0]
+You MUST use tools to fetch news before making conclusions.
 
-        elif isinstance(output[0], dict):
-            results = output
+Rules:
+- Always retrieve company news first if ticker is given
+- Always retrieve global news
+- Do not guess without data
+- Be concise but accurate
 
-        else:
-            raise ValueError(f"Unexpected output format: {output}")
+Output format (STRICT JSON):
+{
+  "company_sentiment": "...",
+  "global_sentiment": "...",
+  "risk_level": "low | medium | high",
+  "summary": "short explanation"
+}
+"""
 
-    else:
-        raise ValueError(f"Unexpected pipeline output: {output}")
+prompt = ChatPromptTemplate.from_messages([
+    ("system", SYSTEM_PROMPT),
+    ("user", "{input}"),
+    MessagesPlaceholder(variable_name="agent_scratchpad"),
+])
 
-    best_result = max(results, key=lambda x: x["score"])
+tools = [
+    StructuredTool.from_function(
+        func=get_company_news,
+        name="get_company_news",
+        description="Fetch latest company-specific financial news using ticker symbol."
+    ),
+    StructuredTool.from_function(
+        func=get_global_news,
+        name="get_global_news",
+        description="Fetch latest global macroeconomic and market news."
+    )
+]
 
-    return {
-        "label": best_result["label"],
-        "score": float(best_result["score"])
-    }
+agent = create_tool_calling_agent(llm, tools, prompt)
 
-def _extract_text(article):
-    if isinstance(article, dict):
-        return (
-            article.get("headline")
-            or article.get("title")
-            or article.get("description")
-            or ""
-        )
-    return str(article)
+agent_executor = AgentExecutor(
+    agent=agent,
+    tools=tools,
+    verbose=True
+)
 
-def analyze_company_sentiment(news_list):
-    scores = []
+def sentiment_agent(ticker: str):
+    result = agent_executor.invoke({
+        "input": f"Analyze sentiment for ticker: {ticker}"
+    })
 
-    for article in news_list:
-        text = _extract_text(article)
-        res = _analyze_text(text)
-        scores.append(res)
-
-    return _aggregate(scores)
-
-def analyze_global_sentiment(news_list):
-    scores = []
-
-    for article in news_list:
-        text = _extract_text(article)
-        res = _analyze_text(text)
-        scores.append(res)
-    
-    return _aggregate(scores)
-
-def _aggregate(results):
-    if not results:
-        return {"sentiment": "neutral", "confidence": 0.0, "reasoning": "No data"}
-
-    label_score = {"positive": 0.0, "negative": 0.0, "neutral": 0.0}
-
-    for r in results:
-        label_score[r["label"]] += r["score"]
-
-    final_label = max(label_score, key=label_score.get)
-
-    confidence = label_score[final_label] / len(results)
-
-    return {
-        "sentiment": final_label,
-        "confidence": round(confidence, 3),
-        "reasoning": f"Aggregated from {len(results)} articles"
-    }
-
-from src.data.news_data import get_company_news
-
-news = get_company_news("MSFT")
-
-result = analyze_company_sentiment(news)
-
-print(result)
+    return json.loads(result["output"])
