@@ -2,7 +2,7 @@ from tools.stock_data_tool import get_stock_data
 from src.data.news_data import get_company_news, get_global_news
 
 from src.agents.technical_agent import technical_agent
-from src.agents.sentiment_agent import (
+from agents.news_agent import (
     analyze_company_sentiment,
     analyze_global_sentiment
 )
