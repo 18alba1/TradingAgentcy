@@ -6,8 +6,9 @@ Example responsibilities:
 
 run technical agent
 run sentiment agent
+run news agent
 run fundamental agent
-run debate
+run debate (bull vs bear)
 run decision agent
 
 Think of it as:

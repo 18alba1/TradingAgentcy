@@ -1,19 +1,3 @@
-''''
-Purpose:
-
-wraps news API calls (later upgrade)'''
-'''
-Responsible for:
-
-getting news headlines
-financial articles (later API)
-
-Output:
-
-list of headlines'''
-
-#IMPLEMENT SOCIAL MEDIA LATER
-
 import finnhub
 from newsdataapi import NewsDataApiClient
 from datetime import date, timedelta

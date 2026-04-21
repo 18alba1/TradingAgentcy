@@ -1,31 +1,20 @@
-import os
+from langchain.agents import create_agent
+from langchain_core.tools import StructuredTool
+
 import json
-from dotenv import load_dotenv
-
-from langchain_openai import ChatOpenAI
-from langchain.agents import create_tool_calling_agent, AgentExecutor
-from langchain.tools import StructuredTool
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-
 from src.tools.news_tool import get_company_news, get_global_news
+from src.config.llm import get_llm
 
-load_dotenv()
-openai_api_key=os.environ.get("OPENAI_API_KEY")
-
-llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    temperature=0.2,
-    api_key=openai_api_key
-)
+llm = get_llm()
 
 SYSTEM_PROMPT = """
-You are a financial sentiment analyst in a trading system.
+You are a financial news analyst in a trading system.
 
 Your job:
-- Analyze company news sentiment
-- Analyze global market sentiment
-- Detect risk, optimism, or uncertainty
-- Output structured sentiment insight for a trading system
+- Analyze company-specific news sentiment
+- Analyze global macroeconomic news sentiment
+- Detect risk factors, optimism, or uncertainty in the news
+- Identify key events or drivers moving the market
 
 You MUST use tools to fetch news before making conclusions.
 
@@ -33,22 +22,21 @@ Rules:
 - Always retrieve company news first if ticker is given
 - Always retrieve global news
 - Do not guess without data
-- Be concise but accurate
+- Be concise and objective — report what the news says, not what to trade
+- If no relevant news is found, reflect that in a low confidence score
 
-Output format (STRICT JSON):
+Output format (STRICT JSON, no markdown, no backticks):
 {
-  "company_sentiment": "...",
-  "global_sentiment": "...",
+  "company_sentiment": "positive | neutral | negative",
+  "company_score": 0-1,
+  "global_sentiment": "positive | neutral | negative | mixed",
+  "global_score": 0-1,
   "risk_level": "low | medium | high",
-  "summary": "short explanation"
+  "confidence": 0-1,
+  "key_drivers": ["...", "..."],
+  "summary": "short explanation of what the news says"
 }
 """
-
-prompt = ChatPromptTemplate.from_messages([
-    ("system", SYSTEM_PROMPT),
-    ("user", "{input}"),
-    MessagesPlaceholder(variable_name="agent_scratchpad"),
-])
 
 tools = [
     StructuredTool.from_function(
@@ -63,17 +51,16 @@ tools = [
     )
 ]
 
-agent = create_tool_calling_agent(llm, tools, prompt)
-
-agent_executor = AgentExecutor(
-    agent=agent,
+agent = create_agent(
+    model=llm,
     tools=tools,
-    verbose=True
+    system_prompt=SYSTEM_PROMPT
 )
 
-def sentiment_agent(ticker: str):
-    result = agent_executor.invoke({
-        "input": f"Analyze sentiment for ticker: {ticker}"
+def news_agent(ticker: str):
+    result = agent.invoke({
+        "messages": [{"role": "user", "content": f"Analyze news sentiment for ticker: {ticker}"}]
     })
-
-    return json.loads(result["output"])
+    raw_output = result["messages"][-1].content
+    clean = raw_output.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    return json.loads(clean)
