@@ -74,13 +74,13 @@ OUTPUT FORMAT (STRICT JSON ONLY):
 
 tools = [
     StructuredTool.from_function(
-        func=get_fundamentals(),
+        func=get_fundamentals,
         name="get_fundamentals",
         description="Fetches key company fundamental financial data including valuation metrics (P/E ratios), profitability (revenue growth, margins, ROE), growth indicators, debt levels, cash flow, and analyst recommendations. Used for quantitative fundamental analysis of a stock."
     )
 ]
 
-agent = create_agent(llm=llm, tools=tools, system_prompt=SYSTEM_PROMPT)
+agent = create_agent(model=llm, tools=tools, system_prompt=SYSTEM_PROMPT)
 
 def fundamental_agent(ticker: str):
     result = agent.invoke({

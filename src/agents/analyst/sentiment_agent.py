@@ -31,13 +31,13 @@ Output format (STRICT JSON, no markdown, no backticks):
 
 tools = [
     StructuredTool.from_function(
-        func=get_reddit_sentiment(),
+        func=get_reddit_sentiment,
         name="get_reddit_sentiment",
         description="Search Reddit posts about a stock ticker across r/stocks, r/investing, and r/wallstreetbets. Returns post titles, text, scores, and comment counts to assess retail investor sentiment."
     )
 ]
 
-agent = create_agent(llm=llm, tools=tools, system_prompt=SYSTEM_PROMPT)
+agent = create_agent(model=llm, tools=tools, system_prompt=SYSTEM_PROMPT)
 
 def sentiment_agent(ticker: str):
     result = agent.invoke({
