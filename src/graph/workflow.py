@@ -26,50 +26,32 @@ def fundamental_node(state: TradingState):
     result = fundamental_agent(state["ticker"])
     return {"fundamentals": result}
 
-def bull_wrapper(state: TradingState):
+def bull_wrapper(state):
     result = bull_node(state)
-
-    if state["turn"] == "BULL_1":
-        next_turn = "BEAR_1"
-    else:
-        next_turn = state["turn"]
 
     return {
         "bull_argument": result,
-        "debate_history": state["debate_history"] + [{
-            "speaker": "bull",
-            "content": result
-        }],
-        "turn": next_turn
+        "round": state.get("round", 1)
     }
 
-def bear_wrapper(state: TradingState):
+def bear_wrapper(state):
     result = bear_node(state)
-
-    if state["turn"] == "BEAR_1":
-        next_turn = "BULL_2"
-    else:
-        next_turn = "BEAR_2"
 
     return {
         "bear_argument": result,
-        "debate_history": state["debate_history"] + [{
-            "speaker": "bear",
-            "content": result
-        }],
-        "turn": next_turn
+        "round": state.get("round", 1) + 1
     }
 
-def route_after_bear(state: TradingState):
-    if state["turn"] == "BEAR_1":
-        return "bull"
-    return "decision"
+MAX_ROUNDS = 2
+
+def route_after_bear(state):
+    if state.get("round", 1) >= MAX_ROUNDS:
+        return "decision"
+    return "bull"
 
 def decision_node(state):
     result = decision_agent_node(state)
     return result
-
-    return {"decision": result}
 
 def build_graph():
     graph = StateGraph(TradingState)
@@ -85,17 +67,20 @@ def build_graph():
     graph.add_node("decision", decision_node)
 
     graph.add_edge(START, "technical")
-    graph.add_edge(START, "fundamentals")
-    graph.add_edge(START, "news")
     graph.add_edge(START, "sentiment")
+    graph.add_edge(START, "news")
+    graph.add_edge(START, "fundamentals")
 
-    graph.add_edge(["technical", "fundamentals", "news", "sentiment"], "bull")
+    graph.add_edge(
+        ["technical", "sentiment", "news", "fundamentals"],
+        "bull"
+    )
 
     graph.add_edge("bull", "bear")
 
     graph.add_conditional_edges(
         "bear",
-        route_after_bear,
+        lambda state: "bull" if state["round"] <= 2 else "decision",
         {
             "bull": "bull",
             "decision": "decision"

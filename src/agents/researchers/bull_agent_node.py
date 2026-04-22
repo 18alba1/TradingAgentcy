@@ -26,45 +26,65 @@ OUTPUT FORMAT (STRICT JSON ONLY):
 
 def bull_node(state: dict) -> dict:
     history = state.get("debate_history", [])
+    round_num = state.get("round", 1)
 
-    technical = state["technical"]
-    fundamentals = state["fundamentals"]
-    news = state["news"]
-    sentiment = state["sentiment"]
-
-    history = state.get("debate_history", [])
-    last_message = next(
-        (msg for msg in reversed(history)
-        if msg["speaker"] != ("bull" if state["turn"].startswith("BULL") else "bear")),
+    last_opponent = next(
+        (m for m in reversed(history) if m["speaker"] == "bear"),
         None
-    )   
-    
-    turn = state.get("turn")
+    )
 
     prompt = f"""
-TURN: {turn}
+ROUND: {round_num}
 
-TECHNICAL ANALYSIS:
-{json.dumps(technical, indent=2)}
+TECHNICAL:
+{json.dumps(state["technical"], indent=2)}
 
 FUNDAMENTALS:
-{json.dumps(fundamentals, indent=2)}
+{json.dumps(state["fundamentals"], indent=2)}
 
 NEWS:
-{json.dumps(news, indent=2)}
+{json.dumps(state["news"], indent=2)}
 
 SENTIMENT:
-{json.dumps(sentiment, indent=2)}
+{json.dumps(state["sentiment"], indent=2)}
 
-DEBATE HISTORY:
-{json.dumps(history, indent=2)}
-
-RESPONSE TARGET (MOST IMPORTANT):
-{json.dumps(last_message, indent=2)}
+OPPONENT LAST MESSAGE:
+{json.dumps(last_opponent, indent=2)}
 
 TASK:
-- If BULL_1: build initial bullish case
-- If BULL_2: directly respond to RESPONSE TARGET and defend bullish position
+- If ROUND 1: Build a strong bullish investment case
+- If ROUND 2: Directly respond to the opponent and defend your position
+
+CRITICAL INSTRUCTION:
+You MUST directly attack specific claims from OPPONENT LAST MESSAGE.
+- Quote or reference at least 2 concrete points from the opponent
+- Explain why those points are incorrect, overstated, or misinterpreted
+- Support your rebuttal using the provided data (technical, fundamentals, sentiment, news)
+- Do NOT restate your previous argument
+- Do NOT ignore the opponent’s claims
+
+RESPONSE STRUCTURE:
+For rebuttals, follow this structure:
+1. Opponent claim
+2. Why it is flawed
+3. Evidence from data
+4. Bullish interpretation
+
+If no opponent message exists:
+- Build a clear bullish thesis using:
+  - growth drivers
+  - valuation upside
+  - sentiment tailwinds
+  - catalysts
+
+OUTPUT FORMAT (STRICT JSON ONLY):
+{{
+  "bull_argument": "structured bullish thesis or rebuttal",
+  "key_catalysts": ["...", "..."],
+  "risk_acknowledgement": ["...", "..."],
+  "confidence": 0.0-1.0,
+  "summary": "short investment thesis"
+}}
 """
 
     response = llm.invoke([
@@ -72,15 +92,16 @@ TASK:
         {"role": "user", "content": prompt}
     ])
 
-    try:
-        parsed = json.loads(response.content)
-    except Exception:
-        parsed = {
-            "bull_argument": response.content,
-            "key_catalysts": [],
-            "risk_acknowledgement": [],
-            "confidence": 0.5,
-            "summary": "parsing error fallback"
-        }
+    result = json.loads(response.content)
 
-    return parsed
+    history.append({
+        "speaker": "bull",
+        "round": round_num,
+        "content": result
+    })
+
+    return {
+        "bull_argument": result,
+        "debate_history": history,
+        "round": round_num + 1
+    }
