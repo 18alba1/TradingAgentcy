@@ -24,6 +24,7 @@ def sentiment_node(state: TradingState):
 
 def fundamental_node(state: TradingState):
     result = fundamental_agent(state["ticker"])
+    return {"fundamentals": result}
 
 def bull_wrapper(state: TradingState):
     result = bull_node(state)
@@ -66,7 +67,7 @@ def build_graph():
     graph.add_node("bull", bull_wrapper)
     graph.add_node("bear", bear_wrapper)
 
-    graph.add_node("decision", decision_agent_node)
+    graph.add_node("decision", decision_node)
 
     graph.add_edge(START, "technical")
     graph.add_edge(START, "fundamentals")
