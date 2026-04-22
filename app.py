@@ -6,7 +6,6 @@ from src.graph.workflow import build_graph
 # Helpers
 # ----------------------------
 def safe_json(data):
-    """Safely handle dict / string / nested JSON"""
     if isinstance(data, str):
         try:
             return json.loads(data)
@@ -16,193 +15,174 @@ def safe_json(data):
 
 def extract_bull(data):
     data = safe_json(data)
-
     if isinstance(data, dict) and "bull_argument" in data:
-        inner = data["bull_argument"]
-        return safe_json(inner)
-
+        return safe_json(data["bull_argument"])
     return data
 
 def extract_bear(data):
     data = safe_json(data)
-
     if isinstance(data, dict) and "bear_argument" in data:
-        inner = data["bear_argument"]
-        return safe_json(inner)
-
+        return safe_json(data["bear_argument"])
     return data
 
-def deep_update(original, update):
-    """Safely merge nested state updates"""
-    for k, v in update.items():
-        if isinstance(v, dict) and isinstance(original.get(k), dict):
-            original[k].update(v)
-        else:
-            original[k] = v
-    return original
-
 
 # ----------------------------
-# UI Setup
+# PAGE SETUP
 # ----------------------------
 st.set_page_config(layout="wide")
-st.title("🏛️ Trading Agent Debate Terminal (v2)")
+st.title("🏛️ AI Trading Debate System")
 
 ticker = st.text_input("Ticker", "AAPL")
 run = st.button("Run Analysis")
 
 
 # ----------------------------
-# RUN GRAPH
+# RUN
 # ----------------------------
 if run:
     app = build_graph()
 
     initial_state = {
         "ticker": ticker,
-
         "technical": {},
         "sentiment": {},
         "news": {},
         "fundamentals": {},
-
         "bull_argument": {},
         "bear_argument": {},
-
         "turn": "BULL_1",
         "debate_history": [],
     }
 
     final_state = initial_state.copy()
 
-    st.info("Running workflow...")
+    st.info("🚀 Running analysis...")
 
+    # FIXED: proper stage tracking
+    stages = [
+        "Technical analysis",
+        "Sentiment analysis",
+        "News analysis",
+        "Fundamentals analysis",
+        "Bull debate",
+        "Bear debate",
+        "Final decision"
+    ]
+
+    progress = st.progress(0)
+    current_stage = 0
+
+
+    # ----------------------------
+    # STREAM EXECUTION
+    # ----------------------------
     for step in app.stream(initial_state):
         for node, update in step.items():
-            final_state = deep_update(final_state, update)
 
-            st.write(f"### Node: {node}")
-            st.json(update)
+            final_state.update(update)
 
-    st.success("Workflow complete")
+            # advance progress ONLY per meaningful stage
+            if node in ["technical", "sentiment", "news", "fundamentals", "bull", "bear", "decision"]:
+                progress.progress((current_stage + 1) / len(stages))
+                current_stage += 1
+
+            st.write(f"### {node}")
+            st.success("Completed")
 
 
-    # ----------------------------
-    # TECHNICAL
-    # ----------------------------
-    st.header("📊 Technical")
-
-    tech = safe_json(final_state.get("technical"))
-    st.write(tech.get("summary", "No summary"))
-
-    with st.expander("Full technical data"):
-        st.json(tech)
+    st.success("✅ Analysis complete")
 
 
     # ----------------------------
-    # SENTIMENT
+    # ANALYST SECTION
     # ----------------------------
-    st.header("💬 Sentiment")
+    st.header("📊 Market Analysis")
 
-    sent = safe_json(final_state.get("sentiment"))
-    st.write(sent.get("insight", "No insight"))
+    col1, col2 = st.columns(2)
 
-    with st.expander("Full sentiment data"):
-        st.json(sent)
+    with col1:
+        tech = safe_json(final_state.get("technical"))
+        st.subheader("Technical")
+        st.write(tech.get("summary", "No summary available"))
 
+        with st.expander("Full technical data"):
+            st.json(tech)
 
-    # ----------------------------
-    # NEWS
-    # ----------------------------
-    st.header("📰 News")
+    with col2:
+        sent = safe_json(final_state.get("sentiment"))
+        st.subheader("Sentiment")
+        st.write(sent.get("insight", "No summary available"))
+
+        with st.expander("Full sentiment data"):
+            st.json(sent)
+
 
     news = safe_json(final_state.get("news"))
-    st.write(news.get("summary", "No summary"))
+    fund = safe_json(final_state.get("fundamentals"))
+
+    st.subheader("📰 News")
+    st.write(news.get("summary", "No summary available"))
 
     with st.expander("Full news data"):
         st.json(news)
 
-
-    # ----------------------------
-    # FUNDAMENTALS
-    # ----------------------------
-    st.header("📈 Fundamentals")
-
-    fund = safe_json(final_state.get("fundamentals"))
-    st.write(fund.get("summary", "No summary"))
+    st.subheader("📈 Fundamentals")
+    st.write(fund.get("summary", "No summary available"))
 
     with st.expander("Full fundamentals data"):
         st.json(fund)
 
 
     # ----------------------------
-    # BULL CASE
+    # DEBATE SECTION (FIXED STRUCTURE)
     # ----------------------------
-    st.header("🐂 Bull Case")
+    st.header("⚔️ Debate Breakdown")
 
     bull = extract_bull(final_state.get("bull_argument"))
-
-    st.subheader(bull.get("summary", "No summary"))
-
-    st.write("### Catalysts")
-    st.write(bull.get("key_catalysts", []))
-
-    st.write("### Risk Acknowledgement")
-    st.write(bull.get("risk_acknowledgement", []))
-
-    st.write(f"Confidence: {bull.get('confidence', 0)}")
-
-    with st.expander("Full bull data"):
-        st.json(bull)
-
-
-    # ----------------------------
-    # BEAR CASE
-    # ----------------------------
-    st.header("🐻 Bear Case")
-
     bear = extract_bear(final_state.get("bear_argument"))
-
-    st.subheader(bear.get("summary", "No summary"))
-
-    st.write("### Key Risks")
-    st.write(bear.get("key_risks", []))
-
-    st.write("### Counter to Bull")
-    st.write(bear.get("counter_to_bull", []))
-
-    st.write("### Risk Drivers")
-    st.write(bear.get("risk_drivers", []))
-
-    st.write(f"Confidence: {bear.get('confidence', 0)}")
-
-    with st.expander("Full bear data"):
-        st.json(bear)
-
-
-    # ----------------------------
-    # DEBATE TIMELINE (NEW)
-    # ----------------------------
-    st.header("🧠 Debate Timeline")
 
     history = final_state.get("debate_history", [])
 
-    if history:
-        for i, msg in enumerate(history):
-            speaker = msg.get("speaker", "unknown")
-            content = msg.get("content", {})
+    # safely extract rounds
+    def find_round(role, idx):
+        for msg in history:
+            if msg.get("speaker") == role:
+                if idx == 0:
+                    return msg.get("content")
+                idx -= 1
+        return None
 
-            if speaker == "bull":
-                st.markdown(f"### 🐂 Bull (Turn {i+1})")
-            elif speaker == "bear":
-                st.markdown(f"### 🐻 Bear (Turn {i+1})")
-            else:
-                st.markdown(f"### ❓ {speaker}")
 
-            st.json(content)
-            st.divider()
-    else:
-        st.write("No debate history available")
+    # ----------------------------
+    # ROUND 1
+    # ----------------------------
+    st.subheader("🟢 Round 1")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("### 🐂 Bull (Round 1)")
+        st.write(find_round("bull", 0) or bull.get("summary", "No summary"))
+
+    with col2:
+        st.markdown("### 🐻 Bear (Round 1)")
+        st.write(find_round("bear", 0) or bear.get("summary", "No summary"))
+
+
+    # ----------------------------
+    # ROUND 2
+    # ----------------------------
+    st.subheader("🔁 Round 2 (Rebuttals)")
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+        st.markdown("### 🐂 Bull Response")
+        st.write(find_round("bull", 1) or "No rebuttal available")
+
+    with col4:
+        st.markdown("### 🐻 Bear Final Response")
+        st.write(find_round("bear", 1) or "No rebuttal available")
 
 
     # ----------------------------
@@ -212,22 +192,30 @@ if run:
 
     dec = safe_json(final_state.get("decision"))
 
-    st.subheader(f"Decision: {dec.get('decision', 'N/A')}")
-    st.write(f"Confidence: {dec.get('confidence', 0)}")
-
+    st.subheader(dec.get("decision", "N/A"))
+    st.write("**Confidence:**", dec.get("confidence", 0))
     st.write(dec.get("reasoning", "No reasoning provided"))
 
     st.write("### Key Factors")
     st.write(dec.get("key_factors", []))
 
-    with st.expander("Full decision data"):
-        st.json(dec)
-
 
     # ----------------------------
-    # DEBUG STATE
+    # CLEAN DROPDOWNS PER SECTION
     # ----------------------------
-    st.divider()
-    st.header("🧠 Full State Debug")
 
-    st.json(final_state)
+    st.subheader("📜 Bull Full Output")
+    with st.expander("Show bull JSON"):
+        st.json(bull)
+
+    st.subheader("📜 Bear Full Output")
+    with st.expander("Show bear JSON"):
+        st.json(bear)
+
+    st.subheader("🧠 Debate History (Raw)")
+    with st.expander("Show full debate log"):
+        st.json(history)
+
+    st.subheader("🧾 System State (Debug)")
+    with st.expander("Show full state"):
+        st.json(final_state)
