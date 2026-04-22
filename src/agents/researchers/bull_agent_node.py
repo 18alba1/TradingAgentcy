@@ -1,3 +1,4 @@
+import json
 from src.config.llm import get_llm
 
 llm = get_llm()
@@ -7,43 +8,23 @@ You are a Bull Analyst in a structured trading debate system.
 
 Your role:
 - Build a strong bullish investment case
-- Focus on upside potential, growth, and positive signals
-- Support arguments using analyst outputs
-- Critically defend against potential bearish concerns
+- Focus on upside potential, growth, and positive catalysts
+- Critically respond to bearish arguments when present
+- Defend bullish thesis under attack
 
-You do NOT fetch data.
-You only analyze provided analyst reports.
-
-DEBATE STRATEGY:
-- Emphasize growth opportunities
-- Highlight strong fundamentals and momentum
-- Interpret sentiment positively where justified
-- Identify catalysts for price appreciation
-
-ANALYSIS INPUTS:
-- Technical analysis
-- Sentiment analysis
-- News sentiment
-- Fundamental analysis
-
-RULES:
-- Be logical, structured, and data-driven
-- Do not hallucinate external data
-- If signals are mixed, explain why upside still exists
-- Stay concise
+You only use provided data. No external knowledge.
 
 OUTPUT FORMAT (STRICT JSON ONLY):
 {
   "bull_argument": "structured bullish thesis",
-  "key_catalysts": ["...", "..."],
-  "risk_acknowledgement": ["...", "..."],
+  "key_catalysts": ["..."],
+  "risk_acknowledgement": ["..."],
   "confidence": 0.0-1.0,
-  "summary": "short investment thesis"
+  "summary": "short thesis"
 }
 """
 
 def bull_node(state: dict) -> dict:
-    round_num = state["round"]
     history = state.get("debate_history", [])
 
     technical = state["technical"]
@@ -51,42 +32,55 @@ def bull_node(state: dict) -> dict:
     news = state["news"]
     sentiment = state["sentiment"]
 
-    prompt = f"""
-    ROUND: {round_num}
-
-    DEBATE HISTORY:
-    {history}
+    history = state.get("debate_history", [])
+    last_message = next(
+        (msg for msg in reversed(history)
+        if msg["speaker"] != ("bull" if state["turn"].startswith("BULL") else "bear")),
+        None
+    )   
     
-    TECHNICAL ANALYSIS:
-    {technical}
+    turn = state.get("turn")
 
-    FUNDAMENTALS:
-    {fundamentals}
+    prompt = f"""
+TURN: {turn}
 
-    NEWS SENTIMENT:
-    {news}
+TECHNICAL ANALYSIS:
+{json.dumps(technical, indent=2)}
 
-    SOCIAL SENTIMENT:
-    {sentiment}
+FUNDAMENTALS:
+{json.dumps(fundamentals, indent=2)}
 
-    TASK:
-    You are the Bull Analyst.
+NEWS:
+{json.dumps(news, indent=2)}
 
-    If ROUND 1:
-    - Build initial bullish case
+SENTIMENT:
+{json.dumps(sentiment, indent=2)}
 
-    If ROUND 2:
-    - Respond to bear arguments and defend bullish position
-    """
+DEBATE HISTORY:
+{json.dumps(history, indent=2)}
+
+RESPONSE TARGET (MOST IMPORTANT):
+{json.dumps(last_message, indent=2)}
+
+TASK:
+- If BULL_1: build initial bullish case
+- If BULL_2: directly respond to RESPONSE TARGET and defend bullish position
+"""
 
     response = llm.invoke([
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": prompt}
     ])
 
-    bull_argument = response.content
+    try:
+        parsed = json.loads(response.content)
+    except Exception:
+        parsed = {
+            "bull_argument": response.content,
+            "key_catalysts": [],
+            "risk_acknowledgement": [],
+            "confidence": 0.5,
+            "summary": "parsing error fallback"
+        }
 
-    return {
-        "bull_argument": bull_argument,
-        "debate_history": history + [f"BULL (round {round_num}): {bull_argument}"]
-    }
+    return parsed

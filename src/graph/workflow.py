@@ -28,20 +28,40 @@ def fundamental_node(state: TradingState):
 
 def bull_wrapper(state: TradingState):
     result = bull_node(state)
+
+    if state["turn"] == "BULL_1":
+        next_turn = "BEAR_1"
+    else:
+        next_turn = state["turn"]
+
     return {
         "bull_argument": result,
-        "round": state["round"]
+        "debate_history": state["debate_history"] + [{
+            "speaker": "bull",
+            "content": result
+        }],
+        "turn": next_turn
     }
 
 def bear_wrapper(state: TradingState):
     result = bear_node(state)
+
+    if state["turn"] == "BEAR_1":
+        next_turn = "BULL_2"
+    else:
+        next_turn = "BEAR_2"
+
     return {
         "bear_argument": result,
-        "round": state["round"] + 1
+        "debate_history": state["debate_history"] + [{
+            "speaker": "bear",
+            "content": result
+        }],
+        "turn": next_turn
     }
 
 def route_after_bear(state: TradingState):
-    if state["round"] < 2:
+    if state["turn"] == "BEAR_1":
         return "bull"
     return "decision"
 

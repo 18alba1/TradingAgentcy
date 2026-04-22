@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Dict, Any
+from typing import TypedDict, List, Dict, Literal, Any
 
 class TradingState(TypedDict):
     ticker: str
@@ -11,7 +11,7 @@ class TradingState(TypedDict):
     bull_argument: Dict[str, Any]
     bear_argument: Dict[str, Any]
     
-    round: int
-    debate_history: List[str]
+    turn: Literal["BULL_1", "BEAR_1", "BULL_2", "BEAR_2"]
+    debate_history: List[Dict[str, Any]]
 
     decision: Dict[str, Any]
