@@ -46,13 +46,8 @@ def route_after_bear(state: TradingState):
     return "decision"
 
 def decision_node(state):
-    result = decision_agent_node(
-        technical=state["technical"],
-        sentiment=state["sentiment"],
-        news=state["news"],
-        fundamentals=state["fundamentals"],
-        debate_history=state["debate_history"]
-    )
+    result = decision_agent_node(state)
+    return result
 
     return {"decision": result}
 
@@ -74,10 +69,7 @@ def build_graph():
     graph.add_edge(START, "news")
     graph.add_edge(START, "sentiment")
 
-    graph.add_edge("technical", "bull")
-    graph.add_edge("fundamentals", "bull")
-    graph.add_edge("news", "bull")
-    graph.add_edge("sentiment", "bull")
+    graph.add_edge(["technical", "fundamentals", "news", "sentiment"], "bull")
 
     graph.add_edge("bull", "bear")
 
