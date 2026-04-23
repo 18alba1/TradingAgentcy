@@ -18,7 +18,7 @@ Your responsibility:
 
 TOOL USAGE:
 - ALWAYS fetch fundamental data before analysis
-- NEVER assume missing data — explicitly treat it as unknown
+- If key metrics are missing (None), explicitly treat them as unknown and reduce confidence
 
 ANALYSIS FRAMEWORK:
 
@@ -76,7 +76,7 @@ tools = [
     StructuredTool.from_function(
         func=get_fundamentals,
         name="get_fundamentals",
-        description="Fetches key company fundamental financial data including valuation metrics (P/E ratios), profitability (revenue growth, margins, ROE), growth indicators, debt levels, cash flow, and analyst recommendations. Used for quantitative fundamental analysis of a stock."
+        description="Fetches fundamental financial data from Finnhub including valuation ratios, profitability metrics, growth indicators, debt levels, cash flow, and analyst estimates."
     )
 ]
 
