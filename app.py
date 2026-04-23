@@ -15,10 +15,36 @@ def safe_json(data):
 
 
 # ----------------------------
-# UI
+# PAGE SETUP
 # ----------------------------
 st.set_page_config(layout="wide")
-st.title("🏛️ AI Trading Debate System (DEBUG MODE)")
+st.title("🏛️ Trading Agentcy")
+
+# ----------------------------
+# SYSTEM EXPLANATION
+# ----------------------------
+with st.expander("ℹ️ How the system works", expanded=True):
+    st.markdown("""
+This system simulates a **multi-agent trading decision process**:
+
+### 📊 Analyst Team
+- **Technical Analyst** → price trends, RSI, MACD  
+- **Fundamental Analyst** → financial health & valuation  
+- **News Analyst** → macro & company news impact  
+- **Sentiment Analyst** → retail & market sentiment  
+
+### ⚔️ Debate System
+- 🐂 **Bull Agent** → argues for upside  
+- 🐻 **Bear Agent** → argues for downside  
+- They debate over **2 rounds**:
+  1. Initial arguments  
+  2. Rebuttals  
+
+### ⚖️ Decision Manager
+- Aggregates everything  
+- Outputs: **BUY / SELL / HOLD**
+""")
+
 
 ticker = st.text_input("Ticker", "AAPL")
 run = st.button("Run Analysis")
@@ -47,14 +73,25 @@ if run:
     st.info("🚀 Running analysis...")
 
     # ----------------------------
-    # DEBUG PANEL
+    # STEP TRACKER
     # ----------------------------
-    debug_box = st.empty()
-    progress_box = st.progress(0)
+    STEPS = [
+        ("technical", "Technical Analysis"),
+        ("sentiment", "Sentiment Analysis"),
+        ("news", "News Analysis"),
+        ("fundamentals", "Fundamental Analysis"),
+        ("bull", "Bull Argument (Round 1)"),
+        ("bear", "Bear Response (Round 1)"),
+        ("bull", "Bull Rebuttal (Round 2)"),
+        ("bear", "Bear Final (Round 2)"),
+        ("decision", "Final Decision"),
+    ]
 
-    seen_nodes = []   # preserves order (important for debugging)
-    total_expected_stages = 7
+    progress_bar = st.progress(0)
+    step_box = st.empty()
 
+    completed = []
+    current = None
 
     # ----------------------------
     # STREAM EXECUTION
@@ -63,36 +100,37 @@ if run:
 
         for node, update in step.items():
 
-            # update state
             final_state.update(update)
 
-            # ----------------------------
-            # DEBUG OUTPUT (REAL TRUTH)
-            # ----------------------------
-            seen_nodes.append(node)
-
-            debug_box.markdown(
-                f"""
-                ### 🔄 Executing Node
-                **Current:** `{node}`
-
-                **Full trace so far:**
-                {seen_nodes}
-                """
-            )
+            current = node
+            completed.append(node)
 
             # ----------------------------
-            # SAFE PROGRESS (NEVER BREAKS)
+            # STEP UI
             # ----------------------------
-            progress_value = min(len(set(seen_nodes)) / total_expected_stages, 1.0)
-            progress_box.progress(progress_value)
+            step_ui = "### ⚙️ Execution Status\n"
 
+            for i, (step_key, label) in enumerate(STEPS):
+                if i < len(completed):
+                    step_ui += f"✅ {label}\n"
+                elif step_key == current:
+                    step_ui += f"⏳ **{label} (running...)**\n"
+                else:
+                    step_ui += f"⬜ {label}\n"
+
+            step_box.markdown(step_ui)
+
+            # ----------------------------
+            # PROGRESS BAR
+            # ----------------------------
+            progress_value = min(len(completed) / len(STEPS), 1.0)
+            progress_bar.progress(progress_value)
 
     st.success("✅ Analysis complete")
 
 
     # ----------------------------
-    # ANALYST SECTION
+    # ANALYST RESULTS
     # ----------------------------
     st.header("📊 Market Analysis")
 
@@ -114,24 +152,28 @@ if run:
         with st.expander("Full sentiment"):
             st.json(sent)
 
-
     news = safe_json(final_state.get("news"))
     fund = safe_json(final_state.get("fundamentals"))
 
     st.subheader("📰 News")
     st.write(news.get("summary", "No summary"))
 
+    with st.expander("Full news"):
+        st.json(news)
+
     st.subheader("📈 Fundamentals")
     st.write(fund.get("summary", "No summary"))
 
+    with st.expander("Full fundamentals"):
+        st.json(fund)
 
-    # ----------------------------
-    # DEBATE SECTION (ROBUST ROUND DISPLAY)
-    # ----------------------------
+
+    # ==========================================================
+    # 🔥 NEW DEBATE SECTION (FULL ARGUMENTS)
+    # ==========================================================
     st.header("⚔️ Debate System")
 
     history = final_state.get("debate_history", [])
-
 
     def get_msg(role, round_num):
         for msg in history:
@@ -143,49 +185,73 @@ if run:
     # ----------------------------
     # ROUND 1
     # ----------------------------
-    st.subheader("🟢 Round 1")
+    st.subheader("🟢 Round 1 — Initial Positions")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("### 🐂 Bull")
-        b1 = get_msg("bull", 1)
-        st.write(b1.get("summary") if b1 else "No data")
+        st.markdown("### 🐂 Bull Case")
 
-        with st.expander("Full bull R1"):
-            st.json(b1 or {})
+        b1 = get_msg("bull", 1)
+
+        if b1:
+            st.write(b1.get("bull_argument", "No argument"))
+            st.caption(f"Summary: {b1.get('summary', '')}")
+
+            with st.expander("📜 Full Bull Data"):
+                st.json(b1)
+        else:
+            st.write("No data")
 
     with col2:
-        st.markdown("### 🐻 Bear")
-        r1 = get_msg("bear", 1)
-        st.write(r1.get("summary") if r1 else "No data")
+        st.markdown("### 🐻 Bear Case")
 
-        with st.expander("Full bear R1"):
-            st.json(r1 or {})
+        r1 = get_msg("bear", 1)
+
+        if r1:
+            st.write(r1.get("bear_argument", "No argument"))
+            st.caption(f"Summary: {r1.get('summary', '')}")
+
+            with st.expander("📜 Full Bear Data"):
+                st.json(r1)
+        else:
+            st.write("No data")
 
 
     # ----------------------------
     # ROUND 2
     # ----------------------------
-    st.subheader("🔁 Round 2")
+    st.subheader("🔁 Round 2 — Rebuttals")
 
     col3, col4 = st.columns(2)
 
     with col3:
-        st.markdown("### 🐂 Bull Response")
-        b2 = get_msg("bull", 2)
-        st.write(b2.get("summary") if b2 else "No response")
+        st.markdown("### 🐂 Bull Rebuttal")
 
-        with st.expander("Full bull R2"):
-            st.json(b2 or {})
+        b2 = get_msg("bull", 2)
+
+        if b2:
+            st.write(b2.get("bull_argument", "No rebuttal"))
+            st.caption(f"Summary: {b2.get('summary', '')}")
+
+            with st.expander("📜 Full Bull R2 Data"):
+                st.json(b2)
+        else:
+            st.write("No response")
 
     with col4:
-        st.markdown("### 🐻 Bear Response")
-        r2 = get_msg("bear", 2)
-        st.write(r2.get("summary") if r2 else "No response")
+        st.markdown("### 🐻 Bear Final Response")
 
-        with st.expander("Full bear R2"):
-            st.json(r2 or {})
+        r2 = get_msg("bear", 2)
+
+        if r2:
+            st.write(r2.get("bear_argument", "No rebuttal"))
+            st.caption(f"Summary: {r2.get('summary', '')}")
+
+            with st.expander("📜 Full Bear R2 Data"):
+                st.json(r2)
+        else:
+            st.write("No response")
 
 
     # ----------------------------
@@ -199,17 +265,15 @@ if run:
     st.write("Confidence:", dec.get("confidence", 0))
     st.write(dec.get("reasoning", "No reasoning"))
 
-    st.write("Key Factors:")
+    st.write("### Key Factors")
     st.write(dec.get("key_factors", []))
 
 
     # ----------------------------
-    # DEBUG SECTION
+    # DEBUG
     # ----------------------------
-    st.divider()
-
-    st.subheader("🧠 Execution Trace (Debug)")
-    st.write(seen_nodes)
+    with st.expander("🧠 Execution Trace"):
+        st.write(completed)
 
     with st.expander("Full state"):
         st.json(final_state)
