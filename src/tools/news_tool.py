@@ -1,13 +1,13 @@
 import finnhub
 from newsdataapi import NewsDataApiClient
 from datetime import date, timedelta
-from dotenv import load_dotenv
-import os
+import streamlit as st
 
-load_dotenv()
+finnhub_api_key = st.secrets["FINNHUB_API_KEY"]
+newsdata_api_key = st.secrets["NEWSDATA_API_KEY"]
 
-finnhub_api_key = os.getenv("FINNHUB_API_KEY")
 finnhub_client = finnhub.Client(api_key=finnhub_api_key)
+newsdata_client = NewsDataApiClient(apikey=newsdata_api_key)
 
 def get_company_news(ticker):
     current_day = date.today()
@@ -21,22 +21,17 @@ def get_company_news(ticker):
 
     if not news:
         return []
-    
+
     sorted_news = sorted(
         news,
         key=lambda x: x.get("datetime") or 0,
         reverse=True
     )
 
-    combined = [
+    return [
         f"Headline: {item.get('headline', '')}. Summary: {item.get('summary', '')}"
         for item in sorted_news[:5]
     ]
-
-    return combined
-
-newsdata_api_key = os.getenv("NEWSDATA_API_KEY")
-newsdata_client = NewsDataApiClient(apikey=newsdata_api_key)
 
 def get_global_news():
     response = newsdata_client.news_api(

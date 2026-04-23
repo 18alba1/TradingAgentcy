@@ -9,7 +9,7 @@ import yfinance as yf
 # LOAD ENV
 # ----------------------------
 load_dotenv()
-APP_PASSWORD = os.getenv("APP_PASSWORD")
+APP_PASSWORD = st.secrets["APP_PASSWORD"]
 
 # ----------------------------
 # AUTH SYSTEM
@@ -38,7 +38,7 @@ def check_password():
 
 if not check_password():
     st.stop()
-    
+
 # ----------------------------
 # HELPERS
 # ----------------------------
@@ -180,12 +180,20 @@ if run:
     # ----------------------------
     # 📉 PRICE CHART
     # ----------------------------
+
+    @st.cache_data(ttl=300)
+    def load_price_data(ticker):
+        import yfinance as yf
+        return yf.download(ticker, period="3mo")
+
     try:
-        data = yf.download(ticker, period="3mo")
+        data = load_price_data(ticker)
+
         st.subheader("📉 Price Chart")
         st.line_chart(data["Close"])
-    except:
-        st.warning("Could not load price data")
+
+    except Exception:
+        st.warning("Could not load price data (rate limited or unavailable)")
 
     # ----------------------------
     # 📊 ANALYST SIGNALS
