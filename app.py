@@ -178,24 +178,6 @@ if run:
     st.divider()
 
     # ----------------------------
-    # 📉 PRICE CHART
-    # ----------------------------
-
-    @st.cache_data(ttl=300)
-    def load_price_data(ticker):
-        import yfinance as yf
-        return yf.download(ticker, period="3mo")
-
-    try:
-        data = load_price_data(ticker)
-
-        st.subheader("📉 Price Chart")
-        st.line_chart(data["Close"])
-
-    except Exception:
-        st.warning("Could not load price data (rate limited or unavailable)")
-
-    # ----------------------------
     # 📊 ANALYST SIGNALS
     # ----------------------------
     st.header("📊 Analyst Signals")
