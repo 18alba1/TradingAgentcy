@@ -1,33 +1,30 @@
-import finnhub
+import requests
 import pandas as pd
-import os
 import streamlit as st
-from datetime import datetime, timedelta
 
-finnhub_client = finnhub.Client(api_key=os.getenv("FINNHUB_API_KEY"))
+API_KEY = st.secrets["TWELVEDATA_API_KEY"]
 
 @st.cache_data(ttl=600)
 def get_stock_data(ticker: str):
 
-    end = datetime.utcnow()
-    start = end - timedelta(days=180)
+    url = "https://api.twelvedata.com/time_series"
 
-    res = finnhub_client.stock_candles(
-        ticker,
-        "D",
-        int(start.timestamp()),
-        int(end.timestamp())
-    )
+    params = {
+        "symbol": ticker,
+        "interval": "1day",
+        "outputsize": 180,
+        "apikey": API_KEY
+    }
 
-    if res.get("s") != "ok":
-        raise ValueError(f"No data for {ticker}")
+    res = requests.get(url, params=params).json()
 
-    df = pd.DataFrame({
-        "Open": res["o"],
-        "High": res["h"],
-        "Low": res["l"],
-        "Close": res["c"],
-        "Volume": res["v"],
-    })
+    if "values" not in res:
+        raise ValueError(res)
+
+    df = pd.DataFrame(res["values"])
+    df = df.astype({"open": float, "high": float, "low": float, "close": float, "volume": float})
+    df = df.iloc[::-1]  # chronological order
+
+    df.rename(columns={"close": "Close"}, inplace=True)
 
     return df

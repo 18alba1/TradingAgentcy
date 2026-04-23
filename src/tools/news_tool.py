@@ -1,36 +1,35 @@
-import finnhub
+#import finnhub
 from newsdataapi import NewsDataApiClient
-from datetime import date, timedelta
+#from datetime import date, timedelta
 import streamlit as st
+import requests
 
-finnhub_api_key = st.secrets["FINNHUB_API_KEY"]
+#finnhub_api_key = st.secrets["FINNHUB_API_KEY"]
 newsdata_api_key = st.secrets["NEWSDATA_API_KEY"]
+API_KEY = st.secrets["FMP_API_KEY"]
 
-finnhub_client = finnhub.Client(api_key=finnhub_api_key)
+#finnhub_client = finnhub.Client(api_key=finnhub_api_key)
 newsdata_client = NewsDataApiClient(apikey=newsdata_api_key)
 
-def get_company_news(ticker):
-    current_day = date.today()
-    last_week = current_day - timedelta(weeks=1)
 
-    news = finnhub_client.company_news(
-        ticker,
-        _from=last_week.isoformat(),
-        to=current_day.isoformat()
-    )
+def get_company_news(ticker: str):
 
-    if not news:
+    url = f"https://financialmodelingprep.com/api/v3/stock_news"
+
+    params = {
+        "tickers": ticker,
+        "limit": 10,
+        "apikey": API_KEY
+    }
+
+    res = requests.get(url, params=params).json()
+
+    if not isinstance(res, list):
         return []
 
-    sorted_news = sorted(
-        news,
-        key=lambda x: x.get("datetime") or 0,
-        reverse=True
-    )
-
     return [
-        f"Headline: {item.get('headline', '')}. Summary: {item.get('summary', '')}"
-        for item in sorted_news[:5]
+        f"Headline: {item.get('title','')}. Summary: {item.get('text','')}"
+        for item in res[:5]
     ]
 
 def get_global_news():

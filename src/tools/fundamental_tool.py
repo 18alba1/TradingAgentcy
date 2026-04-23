@@ -1,10 +1,8 @@
 from finnhub import Client
-import streamlit as st
 
 FINNHUB_API_KEY = st.secrets["FINNHUB_API_KEY"]
 client = Client(api_key=FINNHUB_API_KEY)
 
-@st.cache_data(ttl=3600)
 def get_fundamentals(ticker: str) -> dict:
     profile = client.company_profile2(symbol=ticker)
     metrics = client.company_basic_financials(ticker, "all")
