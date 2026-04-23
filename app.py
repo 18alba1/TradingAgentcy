@@ -1,7 +1,44 @@
 import streamlit as st
 import json
+import os
+from dotenv import load_dotenv
 from src.graph.workflow import build_graph
+import yfinance as yf
 
+# ----------------------------
+# LOAD ENV
+# ----------------------------
+load_dotenv()
+APP_PASSWORD = os.getenv("APP_PASSWORD")
+
+# ----------------------------
+# AUTH SYSTEM
+# ----------------------------
+def check_password():
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if st.session_state.authenticated:
+        return True
+
+    st.title("🔐 Trading Agentcy Login")
+
+    password = st.text_input("Enter password", type="password")
+
+    if st.button("Login"):
+        if password == APP_PASSWORD:
+            st.session_state.authenticated = True
+            st.success("Logged in successfully")
+            st.rerun()
+        else:
+            st.error("Incorrect password")
+
+    return False
+
+
+if not check_password():
+    st.stop()
+    
 # ----------------------------
 # HELPERS
 # ----------------------------
@@ -12,7 +49,6 @@ def safe_json(data):
         except:
             return {"raw": data}
     return data or {}
-
 
 # ----------------------------
 # PAGE SETUP
@@ -33,7 +69,7 @@ This system simulates a **multi-agent trading decision process**:
 - **News Analyst** → macro & company news impact  
 - **Sentiment Analyst** → retail & market sentiment  
 
-### ⚔️ Debate System
+### ⚔️ Investment Debate Engine
 - 🐂 **Bull Agent** → argues for upside  
 - 🐻 **Bear Agent** → argues for downside  
 - They debate over **2 rounds**:
@@ -45,10 +81,8 @@ This system simulates a **multi-agent trading decision process**:
 - Outputs: **BUY / SELL / HOLD**
 """)
 
-
 ticker = st.text_input("Ticker", "AAPL")
 run = st.button("Run Analysis")
-
 
 # ----------------------------
 # RUN
@@ -97,19 +131,14 @@ if run:
     # STREAM EXECUTION
     # ----------------------------
     for step in app.stream(state):
-
         for node, update in step.items():
-
             final_state.update(update)
 
             current = node
             completed.append(node)
 
-            # ----------------------------
-            # STEP UI
-            # ----------------------------
+            # UI Steps
             step_ui = "### ⚙️ Execution Status\n"
-
             for i, (step_key, label) in enumerate(STEPS):
                 if i < len(completed):
                     step_ui += f"✅ {label}\n"
@@ -120,19 +149,48 @@ if run:
 
             step_box.markdown(step_ui)
 
-            # ----------------------------
-            # PROGRESS BAR
-            # ----------------------------
             progress_value = min(len(completed) / len(STEPS), 1.0)
             progress_bar.progress(progress_value)
 
+            st.toast(f"{node} complete ✅")
+
     st.success("✅ Analysis complete")
 
+    # ----------------------------
+    # 📌 TOP DECISION DASHBOARD
+    # ----------------------------
+    st.header("📌 Investment Decision")
+
+    dec = safe_json(final_state.get("decision", {}))
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("Decision", dec.get("decision", "N/A"))
+
+    with col2:
+        st.metric("Confidence", f"{round(dec.get('confidence', 0)*100)}%")
+
+    with col3:
+        st.metric("Risk Level", "Medium")
+
+    st.write(dec.get("reasoning", "No reasoning"))
+    st.divider()
 
     # ----------------------------
-    # ANALYST RESULTS
+    # 📉 PRICE CHART
     # ----------------------------
-    st.header("📊 Market Analysis")
+    try:
+        data = yf.download(ticker, period="3mo")
+        st.subheader("📉 Price Chart")
+        st.line_chart(data["Close"])
+    except:
+        st.warning("Could not load price data")
+
+    # ----------------------------
+    # 📊 ANALYST SIGNALS
+    # ----------------------------
+    st.header("📊 Analyst Signals")
 
     col1, col2 = st.columns(2)
 
@@ -167,11 +225,12 @@ if run:
     with st.expander("Full fundamentals"):
         st.json(fund)
 
+    st.divider()
 
-    # ==========================================================
-    # 🔥 NEW DEBATE SECTION (FULL ARGUMENTS)
-    # ==========================================================
-    st.header("⚔️ Debate System")
+    # ----------------------------
+    # ⚖️ BULL VS BEAR STRENGTH
+    # ----------------------------
+    st.header("⚖️ Bull vs Bear Strength")
 
     history = final_state.get("debate_history", [])
 
@@ -181,102 +240,112 @@ if run:
                 return msg.get("content")
         return None
 
+    bull = get_msg("bull", 2) or get_msg("bull", 1)
+    bear = get_msg("bear", 2) or get_msg("bear", 1)
+
+    bull_conf = bull.get("confidence", 0) if bull else 0
+    bear_conf = bear.get("confidence", 0) if bear else 0
+
+    total = bull_conf + bear_conf + 1e-6
+    st.progress(bull_conf / total)
+    st.caption(f"Bull: {bull_conf:.2f} vs Bear: {bear_conf:.2f}")
+
+    st.divider()
 
     # ----------------------------
-    # ROUND 1
+    # ⚔️ DEBATE ENGINE
     # ----------------------------
+    st.header("⚔️ Investment Debate Engine")
+
+    # ROUND 1
     st.subheader("🟢 Round 1 — Initial Positions")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("### 🐂 Bull Case")
-
         b1 = get_msg("bull", 1)
+        st.markdown("### 🐂 Bull")
 
         if b1:
-            st.write(b1.get("bull_argument", "No argument"))
-            st.caption(f"Summary: {b1.get('summary', '')}")
+            st.markdown("**Thesis**")
+            st.write(b1.get("bull_argument"))
 
-            with st.expander("📜 Full Bull Data"):
+            st.markdown("**Key Catalysts**")
+            st.write(b1.get("key_catalysts", []))
+
+            st.caption(b1.get("summary", ""))
+
+            with st.expander("Full Bull Data"):
                 st.json(b1)
-        else:
-            st.write("No data")
 
     with col2:
-        st.markdown("### 🐻 Bear Case")
-
         r1 = get_msg("bear", 1)
+        st.markdown("### 🐻 Bear")
 
         if r1:
-            st.write(r1.get("bear_argument", "No argument"))
-            st.caption(f"Summary: {r1.get('summary', '')}")
+            st.markdown("**Thesis**")
+            st.write(r1.get("bear_argument"))
 
-            with st.expander("📜 Full Bear Data"):
+            st.markdown("**Key Risks**")
+            st.write(r1.get("key_risks", []))
+
+            st.caption(r1.get("summary", ""))
+
+            with st.expander("Full Bear Data"):
                 st.json(r1)
-        else:
-            st.write("No data")
 
-
-    # ----------------------------
     # ROUND 2
-    # ----------------------------
     st.subheader("🔁 Round 2 — Rebuttals")
 
     col3, col4 = st.columns(2)
 
     with col3:
+        b2 = get_msg("bull", 2)
         st.markdown("### 🐂 Bull Rebuttal")
 
-        b2 = get_msg("bull", 2)
-
         if b2:
-            st.write(b2.get("bull_argument", "No rebuttal"))
-            st.caption(f"Summary: {b2.get('summary', '')}")
+            st.write(b2.get("bull_argument"))
+            st.caption(b2.get("summary", ""))
 
-            with st.expander("📜 Full Bull R2 Data"):
+            with st.expander("Full Bull R2"):
                 st.json(b2)
-        else:
-            st.write("No response")
 
     with col4:
-        st.markdown("### 🐻 Bear Final Response")
-
         r2 = get_msg("bear", 2)
+        st.markdown("### 🐻 Bear Final")
 
         if r2:
-            st.write(r2.get("bear_argument", "No rebuttal"))
-            st.caption(f"Summary: {r2.get('summary', '')}")
+            st.write(r2.get("bear_argument"))
+            st.caption(r2.get("summary", ""))
 
-            with st.expander("📜 Full Bear R2 Data"):
+            with st.expander("Full Bear R2"):
                 st.json(r2)
-        else:
-            st.write("No response")
 
-
-    # ----------------------------
-    # FINAL DECISION
-    # ----------------------------
-    st.header("⚖️ Final Decision")
-
-    dec = safe_json(final_state.get("decision", {}))
-
-    st.subheader(dec.get("decision", "N/A"))
-    st.write("Confidence:", dec.get("confidence", 0))
-    st.write(dec.get("reasoning", "No reasoning"))
-
-    st.write("### Key Factors")
-    st.write(dec.get("key_factors", []))
-
+    st.divider()
 
     # ----------------------------
-    # DEBUG
+    # 🧠 SIDEBAR DEBUG
     # ----------------------------
-    with st.expander("🧠 Execution Trace"):
-        st.write(completed)
+    with st.sidebar:
+        st.header("🧠 Debug")
 
-    with st.expander("Full state"):
-        st.json(final_state)
+        with st.expander("Execution Trace"):
+            st.write(completed)
 
-    with st.expander("Raw debate history"):
-        st.json(history)
+        with st.expander("Full state"):
+            st.json(final_state)
+
+        with st.expander("Debate history"):
+            st.json(history)
+
+    # ----------------------------
+    # 🧠 WHAT THIS SHOWS
+    # ----------------------------
+    st.header("🧠 What this shows")
+
+    st.markdown("""
+- Multi-agent reasoning system  
+- Structured bull vs bear debate  
+- Decision-making under uncertainty  
+- Explainable AI for financial analysis  
+""")
