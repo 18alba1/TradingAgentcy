@@ -35,22 +35,19 @@ def bear_node(state: dict) -> dict:
     )
 
     prompt = f"""
-TURN: {turn}
+ROUND: {round_num}
 
-TECHNICAL ANALYSIS:
-{json.dumps(technical, indent=2)}
+TECHNICAL:
+{json.dumps(state["technical"], indent=2)}
 
 FUNDAMENTALS:
-{json.dumps(fundamentals, indent=2)}
+{json.dumps(state["fundamentals"], indent=2)}
 
 NEWS:
-{json.dumps(news, indent=2)}
+{json.dumps(state["news"], indent=2)}
 
 SENTIMENT:
-{json.dumps(sentiment, indent=2)}
-
-DEBATE HISTORY:
-{json.dumps(history, indent=2)}
+{json.dumps(state["sentiment"], indent=2)}
 
 OPPONENT LAST MESSAGE:
 {json.dumps(last_opponent, indent=2)}
