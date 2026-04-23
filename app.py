@@ -55,7 +55,6 @@ def safe_json(data):
 # ----------------------------
 st.set_page_config(layout="wide")
 st.title("🏛️ Trading Agentcy")
-st.write("VERSION 4")
 # ----------------------------
 # SYSTEM EXPLANATION
 # ----------------------------
