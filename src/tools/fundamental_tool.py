@@ -1,4 +1,5 @@
 from finnhub import Client
+import streamlit as st
 
 FINNHUB_API_KEY = st.secrets["FINNHUB_API_KEY"]
 client = Client(api_key=FINNHUB_API_KEY)
