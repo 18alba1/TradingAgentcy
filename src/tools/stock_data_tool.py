@@ -23,8 +23,7 @@ def get_stock_data(ticker: str):
 
     df = pd.DataFrame(res["values"])
     df = df.astype({"open": float, "high": float, "low": float, "close": float, "volume": float})
-    df = df.iloc[::-1]  # chronological order
-
+    df = df.iloc[::-1] 
     df.rename(columns={"close": "Close"}, inplace=True)
 
     return df
