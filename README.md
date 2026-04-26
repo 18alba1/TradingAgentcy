@@ -73,7 +73,7 @@ Final agent that:
 
 ---
 
-## System Showcase (Example UI)
+## System Showcase
 
 Below are example screenshots of the Trading Agentcy system in action:
 
@@ -160,7 +160,7 @@ This system is inspired by real hedge fund workflows:
 ## Future Improvements
 - Portfolio allocation agent
 - Backtesting framework
-- Improved sentiment analysis (Reddit/Twitter integration)
+- Improved sentiment analysis (Twitter integration)
 - Memory/RAG-based financial reasoning
 
 ## Author
