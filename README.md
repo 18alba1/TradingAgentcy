@@ -7,6 +7,8 @@ The system also includes a **bull vs bear debate engine** that creates adversari
 Live Demo: https://tradingagentcy.streamlit.app/
 (need password to use)
 
+The system is also shown with pictures further down
+
 ---
 
 ## Disclaimer
