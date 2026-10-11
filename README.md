@@ -77,7 +77,9 @@ Final agent that:
 
 ## System Showcase
 
-Below are example screenshots of the Trading Agentcy system in action:
+Below are example screenshots and video demo of the Trading Agentcy system in action:
+
+https://github.com/user-attachments/assets/31bee944-4f5c-47d3-bf76-be12a21b9894
 
 ### Overview
 ![Overview](images/1.png)
